@@ -2,6 +2,7 @@ import React from 'react';
 import {RouteComponentProps} from 'react-router';
 import styled from '@emotion/styled';
 import pick from 'lodash/pick';
+import moment from 'moment';
 
 import Alert from 'app/components/alert';
 import AsyncComponent from 'app/components/asyncComponent';
@@ -235,16 +236,30 @@ class ReleasesDetailContainer extends AsyncComponent<Omit<Props, 'releaseMeta'>>
       );
     }
 
-    const releaseDate = new Date(releaseMeta.released);
-    // Center the release in a 24h time period
-    const defaultSelection = {
-      datetime: {
-        start: new Date(releaseDate.getTime() - 12 * 3600 * 1000),
-        end: new Date(releaseDate.getTime() + 12 * 3600 * 1000),
-        utc: false,
-        period: '',
-      },
-    };
+    const now = moment.utc().valueOf();
+    const releaseDate = moment.utc(releaseMeta.released).valueOf();
+    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+    const defaultSelection =
+      now - releaseDate >= TWELVE_HOURS
+        ? {
+            // Center the release in a 24h time period
+            datetime: {
+              start: new Date(releaseDate - TWELVE_HOURS),
+              end: new Date(releaseDate + TWELVE_HOURS),
+              utc: false,
+              period: '',
+            },
+          }
+        : {
+            // The release is less than 12 hours old, so show the last
+            // 24 hours instead
+            datetime: {
+              start: null,
+              end: null,
+              utc: true,
+              period: '24h',
+            },
+          };
 
     return (
       <GlobalSelectionHeader
