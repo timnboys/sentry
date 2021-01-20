@@ -7,18 +7,9 @@ from django.utils.encoding import force_bytes
 from django.http import StreamingHttpResponse
 from sentry.utils.compat import map
 
-# Python 2 doesn't support unicode with CSV, but Python 3 does via
-# the encoding param
-if six.PY3:
 
-    def encode_row(row):
-        return row
-
-
-else:
-
-    def encode_row(row):
-        return map(force_bytes, row)
+def encode_row(row):
+    return row
 
 
 # csv.writer doesn't provide a non-file interface
