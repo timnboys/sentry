@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 
 import Alert from 'app/components/alert';
 import Button from 'app/components/button';
+import ButtonBar from 'app/components/buttonBar';
 import PanelAlert from 'app/components/panels/panelAlert';
 import {t} from 'app/locale';
 import space from 'app/styles/space';
@@ -14,52 +15,22 @@ import Field from 'app/views/settings/components/forms/field';
 import FieldControl from 'app/views/settings/components/forms/field/fieldControl';
 import FieldErrorReason from 'app/views/settings/components/forms/field/fieldErrorReason';
 import FormFieldControlState from 'app/views/settings/components/forms/formField/controlState';
-import FormModel from 'app/views/settings/components/forms/model';
+import FormModel, {MockModel} from 'app/views/settings/components/forms/model';
 import ReturnButton from 'app/views/settings/components/forms/returnButton';
+
+import {FieldValue} from '../type';
 
 /**
  * Some fields don't need to implement their own onChange handlers, in
  * which case we will receive an Event, but if they do we should handle
  * the case where they return a value as the first argument.
  */
-const getValueFromEvent = (valueOrEvent?, e?: MouseEvent) => {
+const getValueFromEvent = (valueOrEvent?: FieldValue | MouseEvent, e?: MouseEvent) => {
   const event = e || valueOrEvent;
   const value = defined(e) ? valueOrEvent : event && event.target && event.target.value;
 
-  return {
-    value,
-    event,
-  };
+  return {value, event};
 };
-
-// MockedModel that returns values from props
-// Disables a lot of functionality but allows you to use fields
-// without wrapping them in a Form
-class MockModel {
-  //TODO(TS)
-  props: any;
-  initialData: object;
-  constructor(props) {
-    this.props = props;
-
-    this.initialData = {
-      [props.name]: props.value,
-    };
-  }
-  setValue() {}
-  setFieldDescriptor() {}
-  removeField() {}
-  handleBlurField() {}
-  getValue() {
-    return this.props.value;
-  }
-  getError() {
-    return this.props.error;
-  }
-  getFieldState() {
-    return false;
-  }
-}
 
 /**
  * This is a list of field properties that can accept a function taking the
@@ -72,21 +43,49 @@ const propsToObserver = ['help', 'inline', 'highlighted', 'visible', 'disabled']
 type ObserverReducerFn<T> = (props: Props & {model: FormModel}) => T;
 type ObserverOrValue<T> = T | ObserverReducerFn<T>;
 
-type Props = {
+//
+type ObservableProps = {
+  [T in typeof propsToObserver[number]]?: ObserverOrValue<Field['props'][T]>;
+};
+
+type ResolvedObservableProps = {
+  [T in typeof propsToObserver[number]]?: Field['props'][T];
+};
+
+type BaseProps = {
+  /**
+   * Name of the field
+   */
   name: string;
-  style?: React.CSSProperties;
-  saveOnBlur?: boolean;
-  saveMessage?: React.ReactNode | Function;
-  saveMessageAlertType?: React.ComponentProps<typeof Alert>['type'];
+  /**
+   * Used to render the actual control
+   */
   children: (renderProps) => React.ReactNode;
+  /**
+   * Extra styles to apply to the field
+   */
+  style?: React.CSSProperties;
+  /**
+   * When the field is blurred should it automatically persist it's value into
+   * the model
+   */
+  saveOnBlur?: boolean;
+  /**
+   * The message to display when saveOnBlur is false
+   */
+  saveMessage?:
+    | React.ReactNode
+    | ((props: ResolvedProps & {value: FieldValue}) => React.ReactNode);
+  /**
+   * The alert type to use when saveOnBlur is false
+   */
+  saveMessageAlertType?: React.ComponentProps<typeof Alert>['type'];
   onKeyDown?: (value, event) => void;
   onBlur?: (value, event) => void;
   onChange?: (value, event) => void;
   hideErrorMessage?: boolean;
   selectionInfoFunction?: (props) => null | React.ReactNode;
-  inline?: ObserverOrValue<boolean>;
-  placeholder?: ObserverOrValue<React.ReactNode>;
-  visible?: boolean | ((props: Props) => boolean);
+  placeholder?: ObserverOrValue<React.ReactNode>; // TODO: What's using this?
   formatMessageValue?: boolean | Function; //used in prettyFormString
   defaultValue?: any; //TODO(TS): Do we need this?
   resetOnError?: boolean;
@@ -98,15 +97,21 @@ type Props = {
    * Transform data when saving on blur.
    */
   getData?: (value: any) => any;
-} & Omit<FieldControl['props'], typeof propsToObserver[number]> &
-  Omit<Field['props'], 'inline'>;
+};
+
+/**
+ * ResolvedProps do NOT include props which may be given functions that are
+ * reacted on. Resolved props are used inside of makeField.
+ */
+type ResolvedProps = BaseProps & Field['props'];
+
+type Props = BaseProps &
+  ObservableProps &
+  Omit<Field['props'], typeof propsToObserver[number]>;
 
 class FormField extends React.Component<Props> {
   static propTypes = {
     name: PropTypes.string.isRequired,
-
-    /** Inline style */
-    style: PropTypes.object,
 
     /**
      * Iff false, disable saveOnBlur for field, instead show a save/cancel button
@@ -134,10 +139,6 @@ class FormField extends React.Component<Props> {
      * Should hide error message?
      */
     hideErrorMessage: PropTypes.bool,
-    /**
-     * Hides control state component
-     */
-    flexibleControlStateSize: PropTypes.bool,
 
     // Default value to use for form field if value is not specified in `<Form>` parent
     defaultValue: PropTypes.oneOfType([
@@ -184,10 +185,9 @@ class FormField extends React.Component<Props> {
   }
 
   getModel() {
-    if (this.context.form === undefined) {
-      return new MockModel(this.props);
-    }
-    return this.context.form;
+    return this.context.form !== undefined
+      ? this.context.form
+      : new MockModel(this.props);
   }
 
   // Only works for styled inputs
@@ -292,130 +292,132 @@ class FormField extends React.Component<Props> {
 
       // Don't pass `defaultValue` down to input fields, will be handled in form model
       defaultValue: _defaultValue,
-      ...props
+      ...otherProps
     } = this.props;
     const id = this.getId();
     const model = this.getModel();
     const saveOnBlurFieldOverride = typeof saveOnBlur !== 'undefined' && !saveOnBlur;
 
-    //TODO(TS): This is difficult to type because of the reducer
-    const makeField = (extraProps?: any) => (
-      <React.Fragment>
-        <Field
-          id={id}
-          name={name}
-          className={className}
-          flexibleControlStateSize={flexibleControlStateSize}
-          {...props}
-          {...extraProps}
-        >
-          {({alignRight, inline, disabled, disabledReason}) => (
-            <FieldControl
-              disabled={disabled}
-              disabledReason={disabledReason}
-              inline={inline}
-              alignRight={alignRight}
-              flexibleControlStateSize={flexibleControlStateSize}
-              hideControlState={hideControlState}
-              controlState={<FormFieldControlState model={model} name={name} />}
-              errorState={
+    const makeField = (resolvedObservedProps?: ResolvedObservableProps) => {
+      const props = {...otherProps, ...resolvedObservedProps} as ResolvedProps;
+
+      return (
+        <React.Fragment>
+          <Field
+            id={id}
+            className={className}
+            flexibleControlStateSize={flexibleControlStateSize}
+            {...props}
+          >
+            {({alignRight, inline, disabled, disabledReason}) => (
+              <FieldControl
+                disabled={disabled}
+                disabledReason={disabledReason}
+                inline={inline}
+                alignRight={alignRight}
+                flexibleControlStateSize={flexibleControlStateSize}
+                hideControlState={hideControlState}
+                controlState={<FormFieldControlState model={model} name={name} />}
+                errorState={
+                  <Observer>
+                    {() => {
+                      const error = this.getError();
+                      const shouldShowErrorMessage = error && !hideErrorMessage;
+                      if (!shouldShowErrorMessage) {
+                        return null;
+                      }
+                      return <FieldErrorReason>{error}</FieldErrorReason>;
+                    }}
+                  </Observer>
+                }
+              >
                 <Observer>
                   {() => {
                     const error = this.getError();
-                    const shouldShowErrorMessage = error && !hideErrorMessage;
-                    if (!shouldShowErrorMessage) {
-                      return null;
-                    }
-                    return <FieldErrorReason>{error}</FieldErrorReason>;
+                    const value = model.getValue(name);
+                    const showReturnButton = model.getFieldState(
+                      name,
+                      'showReturnButton'
+                    );
+
+                    return (
+                      <React.Fragment>
+                        {this.props.children({
+                          ref: this.handleInputMount,
+                          ...props,
+                          model,
+                          name,
+                          id,
+                          onKeyDown: this.handleKeyDown,
+                          onChange: this.handleChange,
+                          onBlur: this.handleBlur,
+                          // Fixes react warnings about input switching from controlled to uncontrolled
+                          // So force to empty string for null values
+                          value: value === null ? '' : value,
+                          error,
+                          disabled,
+                          initialData: model.initialData,
+                        })}
+                        {showReturnButton && <StyledReturnButton />}
+                      </React.Fragment>
+                    );
                   }}
                 </Observer>
-              }
-            >
-              <Observer>
-                {() => {
-                  const error = this.getError();
-                  const value = model.getValue(name);
-                  const showReturnButton = model.getFieldState(name, 'showReturnButton');
-
-                  return (
-                    <React.Fragment>
-                      {this.props.children({
-                        ref: this.handleInputMount,
-                        ...props,
-                        model,
-                        name,
-                        id,
-                        onKeyDown: this.handleKeyDown,
-                        onChange: this.handleChange,
-                        onBlur: this.handleBlur,
-                        // Fixes react warnings about input switching from controlled to uncontrolled
-                        // So force to empty string for null values
-                        value: value === null ? '' : value,
-                        error,
-                        disabled,
-                        initialData: model.initialData,
-                      })}
-                      {showReturnButton && <StyledReturnButton />}
-                    </React.Fragment>
-                  );
-                }}
-              </Observer>
-            </FieldControl>
+              </FieldControl>
+            )}
+          </Field>
+          {selectionInfoFunction && (
+            <Observer>
+              {() => {
+                const error = this.getError();
+                const value = model.getValue(name);
+                return (
+                  ((typeof props.visible === 'function'
+                    ? props.visible({...this.props, ...props} as ResolvedProps)
+                    : true) &&
+                    selectionInfoFunction({...props, error, value})) ||
+                  null
+                );
+              }}
+            </Observer>
           )}
-        </Field>
-        {selectionInfoFunction && (
-          <Observer>
-            {() => {
-              const error = this.getError();
-              const value = model.getValue(name);
-              return (
-                ((typeof props.visible === 'function'
-                  ? props.visible(this.props)
-                  : true) &&
-                  selectionInfoFunction({...props, error, value})) ||
-                null
-              );
-            }}
-          </Observer>
-        )}
-        {saveOnBlurFieldOverride && (
-          <Observer>
-            {() => {
-              const showFieldSave = model.getFieldState(name, 'showSave');
-              const value = model.getValue(name);
+          {saveOnBlurFieldOverride && (
+            <Observer>
+              {() => {
+                const showFieldSave = model.getFieldState(name, 'showSave');
+                const value = model.getValue(name);
 
-              if (!showFieldSave) {
-                return null;
-              }
+                if (!showFieldSave) {
+                  return null;
+                }
 
-              return (
-                <PanelAlert type={saveMessageAlertType}>
-                  <MessageAndActions>
-                    <div>
-                      {typeof saveMessage === 'function'
-                        ? saveMessage({...props, value})
-                        : saveMessage}
-                    </div>
-                    <Actions>
-                      <CancelButton onClick={this.handleCancelField}>
-                        {t('Cancel')}
-                      </CancelButton>
-                      <SaveButton
-                        priority="primary"
-                        type="button"
-                        onClick={this.handleSaveField}
-                      >
-                        {t('Save')}
-                      </SaveButton>
-                    </Actions>
-                  </MessageAndActions>
-                </PanelAlert>
-              );
-            }}
-          </Observer>
-        )}
-      </React.Fragment>
-    );
+                return (
+                  <PanelAlert type={saveMessageAlertType}>
+                    <MessageAndActions>
+                      <div>
+                        {typeof saveMessage === 'function'
+                          ? saveMessage({...props, value})
+                          : saveMessage}
+                      </div>
+                      <ButtonBar gap={1}>
+                        <Button onClick={this.handleCancelField}>{t('Cancel')}</Button>
+                        <Button
+                          priority="primary"
+                          type="button"
+                          onClick={this.handleSaveField}
+                        >
+                          {t('Save')}
+                        </Button>
+                      </ButtonBar>
+                    </MessageAndActions>
+                  </PanelAlert>
+                );
+              }}
+            </Observer>
+          )}
+        </React.Fragment>
+      );
+    };
 
     const observedProps = propsToObserver
       .filter(p => typeof this.props[p] === 'function')
@@ -446,23 +448,10 @@ class FormField extends React.Component<Props> {
 export default FormField;
 
 const MessageAndActions = styled('div')`
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr max-content;
+  grid-gap: ${space(2)};
   align-items: center;
-`;
-
-const Actions = styled('div')`
-  height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-`;
-
-const CancelButton = styled(Button)`
-  margin-left: ${space(2)};
-`;
-const SaveButton = styled(Button)`
-  margin-left: ${space(1)};
 `;
 
 const StyledReturnButton = styled(ReturnButton)`
