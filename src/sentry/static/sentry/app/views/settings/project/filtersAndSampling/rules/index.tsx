@@ -56,14 +56,18 @@ const StyledPanelTable = styled(PanelTable)`
     }
   }
 
-  grid-template-columns: 1fr 0.5fr max-content;
+  grid-template-columns: 1.5fr 1fr max-content;
 
-  @media (min-width: ${p => p.theme.breakpoints[1]}) {
+  @media (min-width: ${p => p.theme.breakpoints[0]}) {
     > * {
       :nth-child(5n - 3) {
         display: block;
       }
     }
+    grid-template-columns: 1fr 1.5fr 1fr max-content;
+  }
+
+  @media (min-width: ${p => p.theme.breakpoints[2]}) {
     grid-template-columns: 0.5fr 1fr 0.5fr max-content;
   }
 `;

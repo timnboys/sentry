@@ -8,6 +8,7 @@ import Column from '../column';
 
 import Actions from './actions';
 import Conditions from './conditions';
+import SampleRate from './sampleRate';
 import Type from './type';
 
 type Props = {
@@ -28,7 +29,7 @@ function Rule({rule}: Props) {
         <Conditions condition={condition} />
       </Column>
       <CenteredColumn>
-        <div>{`${sampleRate * 100}\u0025`}</div>
+        <SampleRate sampleRate={sampleRate} />
       </CenteredColumn>
       <Column>
         <Actions onEditRule={() => {}} onDeleteRule={() => {}} disabled={false} />

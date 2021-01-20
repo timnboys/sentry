@@ -65,10 +65,18 @@ const StyledButtonbar = styled(ButtonBar)`
   justify-content: flex-end;
   flex: 1;
   display: none;
+
+  @media (min-width: ${p => p.theme.breakpoints[0]}) {
+    display: flex;
+  }
 `;
 
 const StyledDropdownLink = styled(DropdownLink)`
   display: flex;
   align-items: center;
   transition: none;
+
+  @media (min-width: ${p => p.theme.breakpoints[0]}) {
+    display: none;
+  }
 `;

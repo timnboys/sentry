@@ -20,14 +20,14 @@ function Conditions({condition}: Props) {
   function getConvertedValue(value: Array<string>) {
     if (Array.isArray(value)) {
       return (
-        <Values>
+        <React.Fragment>
           {value.map((v, index) => (
             <React.Fragment key={v}>
               <Value>{v}</Value>
               {index !== value.length - 1 && <Separator>{'\u002C'}</Separator>}
             </React.Fragment>
           ))}
-        </Values>
+        </React.Fragment>
       );
     }
 
@@ -41,10 +41,10 @@ function Conditions({condition}: Props) {
       return (
         <Wrapper>
           {conditions.map(({operator, value}, index) => (
-            <Condition key={index}>
-              {getOperatorLabel(operator)}
+            <div key={index}>
+              <Label>{getOperatorLabel(operator)}</Label>
               {getConvertedValue(value)}
-            </Condition>
+            </div>
           ))}
         </Wrapper>
       );
@@ -53,19 +53,19 @@ function Conditions({condition}: Props) {
       const {inner} = condition as DynamicSamplingConditionLogicalNot;
       const {operator, value} = inner;
       return (
-        <Condition>
-          {getOperatorLabel(operator)}
+        <div>
+          <Label>{getOperatorLabel(operator)}</Label>
           {getConvertedValue(value)}
-        </Condition>
+        </div>
       );
     }
     default: {
       const {operator, value} = condition as DynamicSamplingConditionOthers;
       return (
-        <Condition>
-          {getOperatorLabel(operator)}
+        <div>
+          <Label>{getOperatorLabel(operator)}</Label>
           {getConvertedValue(value)}
-        </Condition>
+        </div>
       );
     }
   }
@@ -78,15 +78,13 @@ const Wrapper = styled('div')`
   grid-gap: ${space(1.5)};
 `;
 
-const Condition = styled(Wrapper)``;
-
-const Values = styled('div')`
-  display: flex;
-  flex-wrap: wrap;
+const Label = styled('span')`
+  margin-right: ${space(1)};
 `;
-
-const Value = styled('div')`
+const Value = styled('span')`
   color: ${p => p.theme.gray300};
+  word-break: break-all;
+  white-space: pre-wrap;
 `;
 
 const Separator = styled(Value)`
