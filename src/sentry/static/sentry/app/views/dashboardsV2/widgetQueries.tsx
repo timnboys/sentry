@@ -191,7 +191,7 @@ class WidgetQueries extends React.Component<Props, State> {
           start: start ? getUtcDateString(start) : undefined,
           end: end ? getUtcDateString(end) : undefined,
         });
-        const url = `/organizations/${organization.slug}/eventsv2/`;
+        const url = `/organizations/${organization.slug}/events-geo/`;
         return doDiscoverQuery<TableData>(api, url, {
           ...eventView.generateQueryStringObject(),
         });

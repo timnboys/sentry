@@ -126,3 +126,13 @@ class OrganizationEventsV2Endpoint(OrganizationEventsV2EndpointBase):
                         request, organization, params["project_id"], results
                     ),
                 )
+
+
+class OrganizationEventsGeoEndpoint(OrganizationEventsV2Endpoint):
+    def get_per_page(self, request, default_per_page, max_per_page):
+        # Expect Discover query output to be at most 250 rows, which corresponds
+        # to the number of possible two-letter country codes as defined in ISO 3166-1 alpha-2.
+        return super().get_per_page(request, default_per_page=250, max_per_page=250)
+
+    def get(self, request, organization):
+        return super().get(request, organization)
