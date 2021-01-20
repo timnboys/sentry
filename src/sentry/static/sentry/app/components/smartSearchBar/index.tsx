@@ -1094,6 +1094,7 @@ class SmartSearchBar extends React.Component<Props, State> {
       </React.Fragment>
     );
 
+    // this is my change
     return (
       <Container className={className} isOpen={this.state.dropdownVisible}>
         <SearchLabel htmlFor="smart-search-input" aria-label={t('Search events')}>
