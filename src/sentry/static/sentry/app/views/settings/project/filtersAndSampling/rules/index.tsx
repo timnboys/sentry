@@ -24,6 +24,7 @@ function Rules({rules}: Props) {
         '',
       ]}
       isEmpty={!rules.length}
+      emptyMessage={t('There are no rules to display')}
     >
       {rules.map((rule, index) => (
         <Rule key={index} rule={rule} />

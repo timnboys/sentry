@@ -1,6 +1,7 @@
 import React from 'react';
 import {RouteComponentProps} from 'react-router';
 import isEqual from 'lodash/isEqual';
+import partition from 'lodash/partition';
 
 import ExternalLink from 'app/components/links/externalLink';
 import {t, tct} from 'app/locale';
@@ -11,7 +12,7 @@ import SettingsPageHeader from 'app/views/settings/components/settingsPageHeader
 import TextBlock from 'app/views/settings/components/text/textBlock';
 import PermissionAlert from 'app/views/settings/organization/permissionAlert';
 
-import TransactionRules from './transactionRules';
+import RulesPanel from './rulesPanel';
 import {getPlatformDocLink} from './utils';
 
 type Props = RouteComponentProps<{projectId: string; orgId: string}, {}> &
@@ -21,6 +22,7 @@ type Props = RouteComponentProps<{projectId: string; orgId: string}, {}> &
 
 type State = AsyncView['state'] & {
   project: Project | null;
+  errorRules: DynamicSamplingRules;
   transactionRules: DynamicSamplingRules;
 };
 
@@ -32,6 +34,7 @@ class FiltersAndSampling extends AsyncView<Props, State> {
   getDefaultState() {
     return {
       ...super.getDefaultState(),
+      errorRules: [],
       transactionRules: [],
       project: null,
     };
@@ -43,7 +46,7 @@ class FiltersAndSampling extends AsyncView<Props, State> {
   }
 
   componentDidMount() {
-    this.getTransactionsRules();
+    this.getRules();
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
@@ -53,9 +56,21 @@ class FiltersAndSampling extends AsyncView<Props, State> {
         prevProps.organization.dynamicSampling
       )
     ) {
-      this.getTransactionsRules();
+      this.getRules();
     }
     super.componentDidUpdate(prevProps, prevState);
+  }
+
+  getRules() {
+    const {organization} = this.props;
+    const {dynamicSampling} = organization;
+
+    const [errorRules, transactionRules] = partition(
+      dynamicSampling,
+      rule => rule.ty === DynamicSamplingRuleType.ERROR
+    );
+
+    this.setState({errorRules, transactionRules});
   }
 
   getTransactionsRules() {
@@ -74,7 +89,7 @@ class FiltersAndSampling extends AsyncView<Props, State> {
   };
 
   renderBody() {
-    const {transactionRules, project} = this.state;
+    const {transactionRules, errorRules, project} = this.state;
 
     if (!project) {
       return null;
@@ -99,10 +114,20 @@ class FiltersAndSampling extends AsyncView<Props, State> {
                 'Manage the inbound data you want to store. To change the sampling rate or rate limits, update your SDK configuration. The rules added below will apply on top of your SDK configuration.'
               )}
         </TextBlock>
-        <TransactionRules
-          rules={transactionRules}
-          onAddRule={this.handleAddRule}
+        <RulesPanel
+          rules={errorRules}
           platformDocLink={platformDocLink}
+          onAddRule={this.handleAddRule}
+        />
+        <TextBlock>
+          {t(
+            'The transaction order is limited. Traces must occur first and individual transactions must occur last. Any individual transaction rules before a trace rule will be disregarded. '
+          )}
+        </TextBlock>
+        <RulesPanel
+          rules={transactionRules}
+          platformDocLink={platformDocLink}
+          onAddRule={this.handleAddRule}
         />
       </React.Fragment>
     );
