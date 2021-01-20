@@ -6,6 +6,7 @@ import {t} from 'app/locale';
 import {DynamicSamplingRule} from 'app/types/dynamicSampling';
 
 import CenteredColumn from './centeredColumn';
+import Column from './column';
 import Rule from './rule';
 
 type Props = {
@@ -16,10 +17,9 @@ function Rules({rules}: Props) {
   return (
     <StyledPanelTable
       headers={[
-        '',
-        t('Type'),
-        <CenteredColumn key="projects">{t('Projects')}</CenteredColumn>,
-        t('Condition'),
+        <Column key="drag-and-drop">{''}</Column>,
+        <Column key="event-type">{t('Event Type')}</Column>,
+        <Column key="category">{t('Category')}</Column>,
         <CenteredColumn key="sampling-rate">{t('Sampling Rate')}</CenteredColumn>,
         '',
       ]}
@@ -37,13 +37,33 @@ export default Rules;
 
 // TODO(Priscila): Add PanelTable footer prop
 const StyledPanelTable = styled(PanelTable)`
+  overflow: visible;
   margin-bottom: 0;
   border: none;
   border-bottom-right-radius: 0;
   border-bottom-left-radius: 0;
-  grid-template-columns: max-content max-content 1fr 1.5fr 0.5fr max-content;
-  > *:nth-child(-n + 6) {
-    white-space: nowrap;
-    text-overflow: ellipsis;
+
+  > * {
+    overflow: hidden;
+
+    :nth-child(5n - 4),
+    :nth-child(5n - 3) {
+      display: none;
+    }
+
+    :nth-child(5n) {
+      overflow: visible;
+    }
+  }
+
+  grid-template-columns: 1fr 0.5fr max-content;
+
+  @media (min-width: ${p => p.theme.breakpoints[1]}) {
+    > * {
+      :nth-child(5n - 3) {
+        display: block;
+      }
+    }
+    grid-template-columns: 0.5fr 1fr 0.5fr max-content;
   }
 `;

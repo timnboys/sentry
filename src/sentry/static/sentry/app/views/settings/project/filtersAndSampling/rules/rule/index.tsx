@@ -8,7 +8,6 @@ import Column from '../column';
 
 import Actions from './actions';
 import Conditions from './conditions';
-import Projects from './projects';
 import Type from './type';
 
 type Props = {
@@ -16,7 +15,7 @@ type Props = {
 };
 
 function Rule({rule}: Props) {
-  const {ty, projectIds, conditions, sampleRate} = rule;
+  const {ty, condition, sampleRate} = rule;
   return (
     <React.Fragment>
       <Column>
@@ -25,13 +24,12 @@ function Rule({rule}: Props) {
       <Column>
         <Type type={ty} />
       </Column>
-      <CenteredColumn>
-        <Projects projectIds={projectIds} />
-      </CenteredColumn>
       <Column>
-        <Conditions conditions={conditions} />
+        <Conditions condition={condition} />
       </Column>
-      <CenteredColumn>{`${sampleRate}\u0025`}</CenteredColumn>
+      <CenteredColumn>
+        <div>{`${sampleRate * 100}\u0025`}</div>
+      </CenteredColumn>
       <Column>
         <Actions onEditRule={() => {}} onDeleteRule={() => {}} disabled={false} />
       </Column>

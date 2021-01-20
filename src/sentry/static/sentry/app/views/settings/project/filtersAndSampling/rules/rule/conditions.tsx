@@ -2,16 +2,22 @@ import React from 'react';
 import styled from '@emotion/styled';
 
 import space from 'app/styles/space';
-import {DynamicSamplingCondition} from 'app/types/dynamicSampling';
+import {
+  DynamicSamplingCondition,
+  DynamicSamplingConditionLogicalNot,
+  DynamicSamplingConditionLogicalOthers,
+  DynamicSamplingConditionOperator,
+  DynamicSamplingConditionOthers,
+} from 'app/types/dynamicSampling';
 
 import {getOperatorLabel} from './utils';
 
 type Props = {
-  conditions: Array<DynamicSamplingCondition>;
+  condition: DynamicSamplingCondition;
 };
 
-function Conditions({conditions}: Props) {
-  function getConvertedValue(value: DynamicSamplingCondition['value']) {
+function Conditions({condition}: Props) {
+  function getConvertedValue(value: Array<string>) {
     if (Array.isArray(value)) {
       return (
         <Values>
@@ -28,16 +34,41 @@ function Conditions({conditions}: Props) {
     return <Value>{String(value)}</Value>;
   }
 
-  return (
-    <Wrapper>
-      {conditions.map(({operator, value}, index) => (
-        <Condition key={index}>
+  switch (condition.operator) {
+    case DynamicSamplingConditionOperator.AND:
+    case DynamicSamplingConditionOperator.OR: {
+      const {inner: conditions} = condition as DynamicSamplingConditionLogicalOthers;
+      return (
+        <Wrapper>
+          {conditions.map(({operator, value}, index) => (
+            <Condition key={index}>
+              {getOperatorLabel(operator)}
+              {getConvertedValue(value)}
+            </Condition>
+          ))}
+        </Wrapper>
+      );
+    }
+    case DynamicSamplingConditionOperator.NOT: {
+      const {inner} = condition as DynamicSamplingConditionLogicalNot;
+      const {operator, value} = inner;
+      return (
+        <Condition>
           {getOperatorLabel(operator)}
           {getConvertedValue(value)}
         </Condition>
-      ))}
-    </Wrapper>
-  );
+      );
+    }
+    default: {
+      const {operator, value} = condition as DynamicSamplingConditionOthers;
+      return (
+        <Condition>
+          {getOperatorLabel(operator)}
+          {getConvertedValue(value)}
+        </Condition>
+      );
+    }
+  }
 }
 
 export default Conditions;
@@ -47,12 +78,11 @@ const Wrapper = styled('div')`
   grid-gap: ${space(1.5)};
 `;
 
-const Condition = styled(Wrapper)`
-  grid-template-columns: max-content 1fr;
-`;
+const Condition = styled(Wrapper)``;
 
 const Values = styled('div')`
   display: flex;
+  flex-wrap: wrap;
 `;
 
 const Value = styled('div')`

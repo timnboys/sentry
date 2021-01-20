@@ -1,8 +1,11 @@
 import styled from '@emotion/styled';
 
+import overflowEllipsis from 'app/styles/overflowEllipsis';
+
 const Column = styled('div')`
-  display: flex;
-  align-items: center;
+  ${overflowEllipsis};
+  display: inline-block;
+  vertical-align: middle;
 `;
 
 export default Column;

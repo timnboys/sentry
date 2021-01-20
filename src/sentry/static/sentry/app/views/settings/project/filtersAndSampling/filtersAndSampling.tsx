@@ -1,11 +1,11 @@
 import React from 'react';
 import {RouteComponentProps} from 'react-router';
-import isEqual from 'lodash/isEqual';
 import partition from 'lodash/partition';
 
 import ExternalLink from 'app/components/links/externalLink';
+import {PlatformKey} from 'app/data/platformCategories';
 import {t, tct} from 'app/locale';
-import {Organization, Project} from 'app/types';
+import {Project} from 'app/types';
 import {DynamicSamplingRules, DynamicSamplingRuleType} from 'app/types/dynamicSampling';
 import AsyncView from 'app/views/asyncView';
 import SettingsPageHeader from 'app/views/settings/components/settingsPageHeader';
@@ -16,9 +16,7 @@ import RulesPanel from './rulesPanel';
 import {getPlatformDocLink} from './utils';
 
 type Props = RouteComponentProps<{projectId: string; orgId: string}, {}> &
-  AsyncView['props'] & {
-    organization: Organization;
-  };
+  AsyncView['props'] & {};
 
 type State = AsyncView['state'] & {
   project: Project | null;
@@ -49,21 +47,58 @@ class FiltersAndSampling extends AsyncView<Props, State> {
     this.getRules();
   }
 
-  componentDidUpdate(prevProps: Props, prevState: State) {
-    if (
-      !isEqual(
-        this.props.organization.dynamicSampling,
-        prevProps.organization.dynamicSampling
-      )
-    ) {
-      this.getRules();
-    }
-    super.componentDidUpdate(prevProps, prevState);
-  }
-
   getRules() {
-    const {organization} = this.props;
-    const {dynamicSampling} = organization;
+    const dynamicSampling: DynamicSamplingRules = [
+      {
+        condition: {
+          operator: 'globMatch',
+          name: 'releases',
+          value: ['1.1.1', '1.1.2'],
+        },
+        sampleRate: 0.7,
+        ty: 'trace',
+      },
+      {
+        condition: {
+          operator: 'and',
+          inner: [
+            {
+              operator: 'strEqualNoCase',
+              name: 'environments',
+              value: ['dev', 'prod'],
+            },
+            {
+              operator: 'strEqualNoCase',
+              name: 'userSegements',
+              value: ['FirstSegment', 'SeCoNd'],
+            },
+          ],
+        },
+        sampleRate: 0.8,
+        ty: 'error',
+      },
+      {
+        condition: {
+          operator: 'not',
+          inner: {
+            operator: 'strEqualNoCase',
+            name: 'environments',
+            value: ['dev', 'prod'],
+          },
+        },
+        sampleRate: 0.8,
+        ty: 'error',
+      },
+      {
+        condition: {
+          operator: 'strEqualNoCase',
+          name: 'environments',
+          value: ['dev', 'prod'],
+        },
+        sampleRate: 0.8,
+        ty: 'error',
+      },
+    ] as DynamicSamplingRules;
 
     const [errorRules, transactionRules] = partition(
       dynamicSampling,
@@ -73,30 +108,18 @@ class FiltersAndSampling extends AsyncView<Props, State> {
     this.setState({errorRules, transactionRules});
   }
 
-  getTransactionsRules() {
-    const {organization} = this.props;
-    const {dynamicSampling} = organization;
-
-    const transactionRules = dynamicSampling.filter(
-      rule => rule.ty !== DynamicSamplingRuleType.ERROR
-    );
-
-    this.setState({transactionRules});
-  }
-
   handleAddRule = () => {
     // TODO(Priscila): Implement the request here
   };
 
   renderBody() {
-    const {transactionRules, errorRules, project} = this.state;
+    const {errorRules, transactionRules, project} = this.state;
 
     if (!project) {
       return null;
     }
 
-    const {platform} = project;
-    const platformDocLink = getPlatformDocLink(platform);
+    const platformDocLink = getPlatformDocLink(project.platform as PlatformKey);
 
     return (
       <React.Fragment>

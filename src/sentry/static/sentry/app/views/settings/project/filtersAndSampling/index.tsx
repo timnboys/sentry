@@ -26,10 +26,7 @@ const Index = ({organization, ...props}: Props) => (
       />
     )}
   >
-    <FiltersAndSampling
-      organization={{...organization, dynamicSampling: []}}
-      {...props}
-    />
+    <FiltersAndSampling {...props} />
   </Feature>
 );
 
